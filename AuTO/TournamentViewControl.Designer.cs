@@ -30,7 +30,8 @@
         {
             this.mainPanel = new System.Windows.Forms.Panel();
             this.mainSplit = new System.Windows.Forms.SplitContainer();
-            this.tourneyTablePanel = new System.Windows.Forms.TableLayoutPanel();
+            this.loserTablePanel = new System.Windows.Forms.TableLayoutPanel();
+            this.winnerTablePanel = new System.Windows.Forms.TableLayoutPanel();
             this.matchCallingControl = new AuTO.MatchCallingDisplayControl();
             this.mainPanel.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.mainSplit)).BeginInit();
@@ -41,12 +42,10 @@
             // 
             // mainPanel
             // 
-            this.mainPanel.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.mainPanel.BackColor = System.Drawing.SystemColors.AppWorkspace;
+            this.mainPanel.BackColor = System.Drawing.SystemColors.ControlDark;
             this.mainPanel.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
             this.mainPanel.Controls.Add(this.mainSplit);
+            this.mainPanel.Dock = System.Windows.Forms.DockStyle.Fill;
             this.mainPanel.Location = new System.Drawing.Point(0, 0);
             this.mainPanel.Name = "mainPanel";
             this.mainPanel.Size = new System.Drawing.Size(1086, 634);
@@ -64,32 +63,50 @@
             // 
             // mainSplit.Panel2
             // 
-            this.mainSplit.Panel2.Controls.Add(this.tourneyTablePanel);
+            this.mainSplit.Panel2.Controls.Add(this.loserTablePanel);
+            this.mainSplit.Panel2.Controls.Add(this.winnerTablePanel);
             this.mainSplit.Size = new System.Drawing.Size(1084, 632);
             this.mainSplit.SplitterDistance = 237;
             this.mainSplit.TabIndex = 3;
             // 
-            // tourneyTablePanel
+            // loserTablePanel
             // 
-            this.tourneyTablePanel.CellBorderStyle = System.Windows.Forms.TableLayoutPanelCellBorderStyle.Single;
-            this.tourneyTablePanel.ColumnCount = 1;
-            this.tourneyTablePanel.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 844F));
-            this.tourneyTablePanel.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.tourneyTablePanel.GrowStyle = System.Windows.Forms.TableLayoutPanelGrowStyle.AddColumns;
-            this.tourneyTablePanel.Location = new System.Drawing.Point(0, 0);
-            this.tourneyTablePanel.Margin = new System.Windows.Forms.Padding(0);
-            this.tourneyTablePanel.Name = "tourneyTablePanel";
-            this.tourneyTablePanel.RowCount = 2;
-            this.tourneyTablePanel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 37F));
-            this.tourneyTablePanel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
-            this.tourneyTablePanel.Size = new System.Drawing.Size(843, 632);
-            this.tourneyTablePanel.TabIndex = 0;
-            this.tourneyTablePanel.MouseDown += new System.Windows.Forms.MouseEventHandler(this.tourneyTablePanel_MouseDown);
-            this.tourneyTablePanel.MouseMove += new System.Windows.Forms.MouseEventHandler(this.tourneyTablePanel_MouseMove);
+            this.loserTablePanel.ColumnCount = 1;
+            this.loserTablePanel.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
+            this.loserTablePanel.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 20F));
+            this.loserTablePanel.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 22F));
+            this.loserTablePanel.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.loserTablePanel.GrowStyle = System.Windows.Forms.TableLayoutPanelGrowStyle.AddColumns;
+            this.loserTablePanel.Location = new System.Drawing.Point(0, 0);
+            this.loserTablePanel.Margin = new System.Windows.Forms.Padding(0);
+            this.loserTablePanel.Name = "loserTablePanel";
+            this.loserTablePanel.RowCount = 2;
+            this.loserTablePanel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 37F));
+            this.loserTablePanel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
+            this.loserTablePanel.Size = new System.Drawing.Size(843, 632);
+            this.loserTablePanel.TabIndex = 1;
+            // 
+            // winnerTablePanel
+            // 
+            this.winnerTablePanel.CellBorderStyle = System.Windows.Forms.TableLayoutPanelCellBorderStyle.Single;
+            this.winnerTablePanel.ColumnCount = 1;
+            this.winnerTablePanel.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 856F));
+            this.winnerTablePanel.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.winnerTablePanel.GrowStyle = System.Windows.Forms.TableLayoutPanelGrowStyle.AddColumns;
+            this.winnerTablePanel.Location = new System.Drawing.Point(0, 0);
+            this.winnerTablePanel.Margin = new System.Windows.Forms.Padding(0);
+            this.winnerTablePanel.Name = "winnerTablePanel";
+            this.winnerTablePanel.RowCount = 2;
+            this.winnerTablePanel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 37F));
+            this.winnerTablePanel.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
+            this.winnerTablePanel.Size = new System.Drawing.Size(843, 632);
+            this.winnerTablePanel.TabIndex = 0;
+            this.winnerTablePanel.MouseDown += new System.Windows.Forms.MouseEventHandler(this.tablePanel_MouseDown);
+            this.winnerTablePanel.MouseMove += new System.Windows.Forms.MouseEventHandler(this.tabelPanel_MouseMove);
             // 
             // matchCallingControl
             // 
-            this.matchCallingControl.BackColor = System.Drawing.SystemColors.AppWorkspace;
+            this.matchCallingControl.BackColor = System.Drawing.SystemColors.ControlDark;
             this.matchCallingControl.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
             this.matchCallingControl.Dock = System.Windows.Forms.DockStyle.Fill;
             this.matchCallingControl.Location = new System.Drawing.Point(0, 0);
@@ -116,8 +133,9 @@
         #endregion
 
         private System.Windows.Forms.Panel mainPanel;
-        private System.Windows.Forms.TableLayoutPanel tourneyTablePanel;
+        private System.Windows.Forms.TableLayoutPanel winnerTablePanel;
         private System.Windows.Forms.SplitContainer mainSplit;
         private MatchCallingDisplayControl matchCallingControl;
+        private System.Windows.Forms.TableLayoutPanel loserTablePanel;
     }
 }

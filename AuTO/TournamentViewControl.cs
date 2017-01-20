@@ -15,9 +15,13 @@ namespace AuTO
         #region Fields
 
         private Point tableScrollPoint;
+        private MainForm parentForm;
+        private Button endTourneyButton;
         private Dictionary<int, MatchDisplayControl> matchControls;
        
         private int tournamentID;
+        private string tournamentName;
+        private bool isDoubleElim;
         private Scheduler scheduler;
         private List<Match> winnersBracket;
         private List<Match> losersBracket;
@@ -31,26 +35,35 @@ namespace AuTO
             tableScrollPoint = new Point();
         }
 
-        public TournamentViewControl(int t_id, Dictionary<int, string> players,
-                                     Dictionary<int, Match> matches, int setups)
+        public TournamentViewControl(int t_id, string name, Dictionary<int, string> players,
+                                     Dictionary<int, Match> matches, int setups, bool doubleElim)
         {
             /* DEBUGGING */
-            foreach (Match m in matches.Values)
-                Console.WriteLine("Match: {0} Round: {1} Order: {2}", m.ID, m.Round, m.PlayOrder);
+            //foreach (Match m in matches.Values)
+            //    Console.WriteLine("Match: {0} Round: {1} Order: {2}", m.ID, m.Round, m.PlayOrder);
 
             InitializeComponent();
             tableScrollPoint = new Point();
+            endTourneyButton = null;
             matchControls = new Dictionary<int, MatchDisplayControl>();
             matchCallingControl.SetMasterParent(this);
 
             tournamentID = t_id;
+            tournamentName = name;
+            isDoubleElim = doubleElim;
             scheduler = new Scheduler(t_id, players, matches, setups);
 
             winnersBracket = new List<Match>();
             losersBracket = new List<Match>();
             scheduler.SplitMatchesByBrackets(ref winnersBracket, ref losersBracket);
 
-            SetupTournamentView(scheduler.MaxWinnerRounds, winnersBracket);
+            /* Setup tournament views for winners and losers brackets */
+            SetupTournamentView(winnerTablePanel,scheduler.MaxWinnerRounds, winnersBracket);
+            SetupTournamentView(loserTablePanel, scheduler.MaxLoserRounds, losersBracket);
+
+            winnerTablePanel.CellBorderStyle = TableLayoutPanelCellBorderStyle.Inset;
+            loserTablePanel.CellBorderStyle = TableLayoutPanelCellBorderStyle.Inset;
+
             ScheduleMatches();
         }
 
@@ -59,17 +72,52 @@ namespace AuTO
             return tournamentID;
         }
 
-        public void SetupTournamentView (int rounds, List<Match> bracket)
+        public void SetBracketButtons (MainForm mainForm)
         {
+            parentForm = mainForm;
+            mainForm.SetTournamentName(tournamentName);
+            mainForm.SetTournamentID(tournamentID);
+
+            /* Setup bracket button functionality, if applicable. */
+            if (isDoubleElim)
+            {
+                mainForm.GetWinnersButton().Click += winnersButton_Click;
+                mainForm.GetLosersButton().Click += losersButton_Click;
+                mainForm.ShowBracketButtons();
+
+                mainForm.SetHeaderText(tournamentName + " - Winner's Bracket");
+            }
+            else
+            {
+                mainForm.HideBracketButtons();
+                mainForm.SetHeaderText(tournamentName);
+            }
+
+            winnerTablePanel.Visible = true;
+            loserTablePanel.Visible = false;
+        }
+
+        public void SetupTournamentView (TableLayoutPanel panel, int rounds, List<Match> bracket)
+        {
+            /* Loser rounds are negative */
+            rounds = (int)Math.Abs(rounds);
+
             /* Set number of columns needed at their size */
-            tourneyTablePanel.Dock = DockStyle.None;
-            tourneyTablePanel.ColumnCount = rounds;
-            tourneyTablePanel.Size = new Size(rounds * 200, rounds * 155 * 2);  
+            panel.Dock = DockStyle.None;
+            panel.ColumnCount = (int)Math.Abs(rounds);
+
+            /* Automatically updates size in case if MatchDisplayControl's size gets
+             * updated at some point. */
+            Point sizeDummy = new Point(new MatchDisplayControl().Width + 7,
+                                        new MatchDisplayControl().Height + 10);
+            panel.Size = new Size((rounds + 1) * sizeDummy.X, rounds * sizeDummy.Y * 2);  
 
             /* Set column and row height/width */
-            TableLayoutStyleCollection styles = tourneyTablePanel.ColumnStyles;
+            TableLayoutStyleCollection styles = panel.ColumnStyles;
             foreach (ColumnStyle c in styles)
-                c.Width = 200;
+            { 
+                c.SizeType = SizeType.AutoSize;
+            }
 
             /* Add matches */
             for (int k = 0; k < rounds; k++)
@@ -77,47 +125,67 @@ namespace AuTO
                 int curRound = k + 1;
 
                 Panel p = new Panel();
-                tourneyTablePanel.Controls.Add(p, k, 1);
+                panel.Controls.Add(p, k, 1);
                 p.Dock = DockStyle.Fill;
 
                 /* Size flow panel by how many games that round has */
                 int gamesPerRound = 0;
                 foreach (Match match in bracket)
                 {
-                    if (match.Round == curRound)
+                    if ((int)Math.Abs(match.Round) == curRound)
                         gamesPerRound++;
                 }
 
                 FlowLayoutPanel f = new FlowLayoutPanel();
-                f.Name = "FlowLayout Round " + curRound;
                 f.Margin = new Padding(0, 0, 0, 0);
                 f.AutoSize = false;
                 f.AutoScroll = true;
-                f.Size = new Size(f.Size.Width, gamesPerRound * 155);
+                f.Size = new Size(f.Size.Width, (gamesPerRound + 1) * sizeDummy.Y);
                 f.FlowDirection = FlowDirection.TopDown;
                 f.WrapContents = false;
-                f.MouseDown += tourneyTablePanel_MouseDown;
+                f.MouseDown += tablePanel_MouseDown;
                 f.MouseMove += matchView_MouseMove;
 
                 /* Add matches related to current round iteration */
                 foreach (Match match in bracket)   
                 {
-                    if (match.Round == curRound)
+                    if ((int)Math.Abs(match.Round) == curRound)
                     {
                         string p1 = scheduler.GetPlayerNameFromID(match.Player1ID);
                         string p2 = scheduler.GetPlayerNameFromID(match.Player2ID);
 
                         MatchDisplayControl m = new MatchDisplayControl(this);
-                        m.Name = "Match Round " + curRound;
                         m.SetMatchID(match.ID);
                         m.SetPlayer1Name(p1);
                         m.SetPlayer2Name(p2);
+                        m.SetSetupLabel("Pending");
 
                         m.GetSubmitButton().Click += submitButton_Click;
 
                         matchControls.Add(match.ID, m);
                         f.Controls.Add(m);
                     }
+                }
+
+                /* Add end tournament button last; shows up in winners bracket only. */
+                if (bracket == winnersBracket && k == rounds - 1)
+                {
+                    Button b = new Button();
+                    b.Name = "endTourneyButton";
+                    b.Text = "End Tournament";
+                    b.Font = new Font("Lucida Sans Unicode", 9.75f, FontStyle.Bold);
+                    b.TextAlign = ContentAlignment.MiddleCenter;
+
+                    b.Anchor = AnchorStyles.Left | AnchorStyles.Right;
+                    b.AutoSize = true;
+                    b.Margin = new Padding(0, 20, 0, 0);
+                    b.FlatStyle = FlatStyle.Popup;
+                    b.BackColor = Color.ForestGreen;
+                    b.Click += endTourneyButton_Click;
+                    b.Visible = false;
+                    endTourneyButton = b;
+
+                    f.Controls.Add(b);
                 }
 
                 p.Controls.Add(f);
@@ -133,24 +201,36 @@ namespace AuTO
                 l.TextAlign = ContentAlignment.MiddleCenter;
                 l.Margin = new Padding(0, 0, 0, 0);
                 l.Dock = DockStyle.Fill;
-                l.MouseDown += tourneyTablePanel_MouseDown;
-                l.MouseMove += tourneyTablePanel_MouseMove;
+                l.MouseDown += tablePanel_MouseDown;
+                l.MouseMove += tabelLabel_MouseMove;
 
-                tourneyTablePanel.Controls.Add(l, k, 0);
+                panel.Controls.Add(l, k, 0);
+            }
+        }
+
+        /* If oldName appears in any control, updates the name to newName */
+        public void UpdatePlayerName (string oldName, string newName)
+        { 
+            foreach (MatchDisplayControl mdc in matchControls.Values)
+            {
+                if (mdc.GetPlayer1Name().Equals(oldName))
+                    mdc.SetPlayer1Name(newName);
+                else if (mdc.GetPlayer2Name().Equals(oldName))
+                    mdc.SetPlayer2Name(newName);
             }
         }
 
         /* Schedules upcoming matches and notifies user that new matches can be called
          * NOTE: So far, the notifying user portion operaetes by adding items to the upcoming
          * match list as well as changing control colors. */
-        private void ScheduleMatches ()
+        private async void ScheduleMatches ()
         {
             //matchCallingControl.ClearUpcomingMatches();
             //matchCallingControl.ClearLongMatches();
             
             /* Schedule newly opened matches and add them to matches-
              * to-call list. */
-            scheduler.UpdateMatchStatesFromChallonge();
+            await scheduler.UpdateMatchStatesFromChallonge();
             List<Match> newMatches = scheduler.ScheduleOpenMatches();
             foreach (Match m in newMatches)
             {
@@ -168,12 +248,17 @@ namespace AuTO
                 MatchDisplayControl mdc = matchControls[m.ID];
                 mdc.SetPlayer1Name(p1);
                 mdc.SetPlayer2Name(p2);
+                mdc.SetSetupNumber(m.Setup);
+                mdc.SetSetupLabel(String.Format("Setup: {0}", m.Setup));
                 mdc.IndicateOpenMatch();
 
                 /* Set match name info in upcoming match list */
-                string matchName = String.Format("{0} vs. {1}", p1, p2);
+                string matchName = String.Format("{0} vs. {1} - Setup: {2}", p1, p2, m.Setup);
                 matchCallingControl.AddItemToUpcomingMatches(matchName, m.ID);
             }
+
+            if (scheduler.CheckIfTournamentEnded())
+                endTourneyButton.Visible = true;
         }
 
         /* Sets a match as ongoing, changing its control color, removing it from the
@@ -188,8 +273,8 @@ namespace AuTO
 
             MatchDisplayControl mdc = matchControls[id];
             mdc.IndicateOngoingMatch();
-
-            string matchName = String.Format("{0} vs. {1}", mdc.GetPlayer1Name(), mdc.GetPlayer2Name());
+            string matchName = String.Format("{0} vs. {1} - Setup: {2}", mdc.GetPlayer1Name(),
+                                              mdc.GetPlayer2Name(), mdc.GetSetupNumber());
             matchCallingControl.DeleteItemFromUpcomingMatches(matchName);
             matchCallingControl.AddItemToCurrentMatches(matchName);
         }
@@ -197,21 +282,33 @@ namespace AuTO
         #region GUI Events
 
         /* Save mouse position in case if user wants to drag control */
-        private void tourneyTablePanel_MouseDown(object sender, MouseEventArgs e)
+        private void tablePanel_MouseDown(object sender, MouseEventArgs e)
         {
             if (e.Button == MouseButtons.Left)
                 tableScrollPoint = e.Location;
         }
 
         /* When user drags mouse and left clicks, emulate dragging of horizontal scrollbar */
-        private void tourneyTablePanel_MouseMove(object sender, MouseEventArgs e)
+        private void tabelPanel_MouseMove(object sender, MouseEventArgs e)
         {
             if (e.Button == MouseButtons.Left)
             {
-                int pos = e.X + tourneyTablePanel.Left - tableScrollPoint.X;
-                pos = (int)Math.Max(pos, -tourneyTablePanel.Size.Width + 500);
+                Control panel = sender as Control;
+
+                int pos = e.X + panel.Left - tableScrollPoint.X;
+                pos = (int)Math.Max(pos, -panel.Size.Width + 500);
                 if (pos < 20)
-                    tourneyTablePanel.Left = pos;
+                    panel.Left = pos;
+            }
+        }
+
+        /* When user drags mouse and left clicks, emulate dragging of horizontal scrollbar */
+        private void tabelLabel_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (e.Button == MouseButtons.Left)
+            {
+                Control panel = ((Control)sender).Parent;
+                tabelPanel_MouseMove(panel, e);
             }
         }
 
@@ -228,47 +325,149 @@ namespace AuTO
             }
         }
 
+        /* Ends tournament */
+        public async void endTourneyButton_Click(object sender, EventArgs e)
+        {
+            DialogResult result = MessageBox.Show("You cannot make any addtional edits " +
+                                                  "once the tournament has been finalized. \n\n" +
+                                                  "Are you sure you want to continue?",
+                                                  "Finalize the tournament?", MessageBoxButtons.YesNo);
+            if (result == DialogResult.Yes)
+            {
+                int statusCode = await Challonge.FinishTournament(tournamentID);
+                if (statusCode < 0)
+                {
+                    MessageBox.Show("FATAL ERROR: COULD NOT END TOURNAMENT THROUGH AUTO",
+                                    "ERROR", MessageBoxButtons.OK);
+                }
+                else
+                {
+                    endTourneyButton.Enabled = false;
+                    parentForm.SetHeaderText(tournamentName + " - FINISHED");
+                }
+            }
+        }
+
+        /* Displays winners bracket */
+        public void winnersButton_Click(object sender, EventArgs e)
+        {
+            if (isDoubleElim)
+            {
+                parentForm.SetHeaderText(tournamentName + " - Winner's Bracket");
+                loserTablePanel.Visible = false;
+                winnerTablePanel.Visible = true;
+            }
+        }
+
+        /* Displays losers bracket */
+        public void losersButton_Click(object sender, EventArgs e)
+        {
+            if (isDoubleElim)
+            {
+                parentForm.SetHeaderText(tournamentName + " - Loser's Bracket");
+                winnerTablePanel.Visible = false;
+                loserTablePanel.Visible = true;
+            }
+        }
+
         /* Submit score to Challonge */
         private async void submitButton_Click(object sender, EventArgs e)
         {
-            MatchDisplayControl parent = ((Button)sender).Parent as MatchDisplayControl;
-            if (parent == null)
+            bool changingWinner = false;
+            MatchDisplayControl mdc = ((Button)sender).Parent as MatchDisplayControl;
+            if (mdc == null)
             {
                 Console.WriteLine("MatchDisplayControl that submit button is part of could not be found.");
                 return;
             }
 
-            int p1Score = parent.GetPlayer1Score();
-            int p2Score = parent.GetPlayer2Score();
+            int p1Score = mdc.GetPlayer1Score();
+            int p2Score = mdc.GetPlayer2Score();
+            
+            if (string.IsNullOrEmpty(mdc.GetPlayer1Name()) ||
+                string.IsNullOrEmpty(mdc.GetPlayer2Name()))
+            {
+                mdc.DisplayErrorLabel("No match to submit scores!");
+                return;
+            }
 
-            int p1ID = scheduler.GetPlayerIDFromName(parent.GetPlayer1Name());
-            int p2ID = scheduler.GetPlayerIDFromName(parent.GetPlayer2Name());
+            int p1ID = scheduler.GetPlayerIDFromName(mdc.GetPlayer1Name());
+            int p2ID = scheduler.GetPlayerIDFromName(mdc.GetPlayer2Name());
 
+            /* Differentiate winner from loser */
             int winnerID = (p1Score > p2Score) ? p1ID : 
                            (p1Score < p2Score) ? p2ID : -1;
+            int loserID = (winnerID == p1ID) ? p2ID : p1ID;
 
             if (winnerID == -1)
             {
-                parent.DisplayErrorLabel("Cannot have same scores!");
+                mdc.DisplayErrorLabel("Cannot have same scores!");
                 return;
             }
+            else if (mdc.GetWinnerID() != 0 && mdc.GetWinnerID() != winnerID)
+            {
+                DialogResult result = MessageBox.Show("You are changing the winner of an already " +
+                                                      "reported match.\n\n Are you sure you want to " +
+                                                      "continue?", "Warning: Changing Winner",
+                                                      MessageBoxButtons.YesNo);
+                if (result == DialogResult.No)
+                {
+                    mdc.DisplayErrorLabel("Report to Challonge aborted.");
+                    return;
+                }
+                else
+                    changingWinner = true;
+            }
 
-            int matchID = parent.GetMatchID();
+            /* Report match to Challonge */
+            int matchID = mdc.GetMatchID();
             bool success = await scheduler.ReportMatch(matchID, p1Score, p2Score, winnerID);
             if (!success)
             {
-                parent.DisplayErrorLabel("Report to Challonge failed.");
+                mdc.DisplayErrorLabel("Report to Challonge failed.");
                 return;
             }
 
-            string matchName = String.Format("{0} vs. {1}", parent.GetPlayer1Name(), parent.GetPlayer2Name());
+            /* Set MatchDisplayControl match finished attributes */
+            mdc.SetWinnerID(winnerID);
+
+            string matchName = String.Format("{0} vs. {1} - Setup: {2}", mdc.GetPlayer1Name(),
+                                              mdc.GetPlayer2Name(), mdc.GetSetupNumber());
+            matchCallingControl.DeleteItemFromUpcomingMatches(matchName);
             matchCallingControl.DeleteItemFromOngoingMatches(matchName);
 
-            parent.HideErrorLabel();
-            parent.IndicateSubmittedMatch();
-
+            mdc.HideErrorLabel();
+            mdc.IndicateSubmittedMatch();
 
             scheduler.CloseMatch(matchID);
+
+            /* If the winner has been changed, update any open matches that may be affected
+             * by this change. */
+            if (changingWinner)
+            {
+                List<Match> updatedOpenMatches = scheduler.SwapPlayers(winnerID, loserID);
+                foreach (Match m in updatedOpenMatches)
+                { 
+                    if (matchControls.ContainsKey(m.ID))
+                    {
+                        /* Delete match from calling display. */
+                        MatchDisplayControl mc = matchControls[m.ID];
+                        string oldMatchName = String.Format("{0} vs. {1} - Setup: {2}", mc.GetPlayer1Name(),
+                                                            mc.GetPlayer2Name(), mc.GetSetupNumber());
+                        matchCallingControl.DeleteItemFromUpcomingMatches(oldMatchName);
+
+                        /* Change names on Match Display Control. */
+                        mc.SetPlayer1Name(scheduler.GetPlayerNameFromID(m.Player1ID));
+                        mc.SetPlayer2Name(scheduler.GetPlayerNameFromID(m.Player2ID));
+
+                        /* Update match name in calling display. */
+                        string newMatchName = String.Format("{0} vs. {1} - Setup: {2}", mc.GetPlayer1Name(),
+                                                            mc.GetPlayer2Name(), mc.GetSetupNumber());
+                        matchCallingControl.AddItemToUpcomingMatches(newMatchName, m.ID);
+                    }
+                }
+            }
+
             ScheduleMatches();
         }
 

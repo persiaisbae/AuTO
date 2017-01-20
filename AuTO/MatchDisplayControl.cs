@@ -13,9 +13,17 @@ namespace AuTO
     public partial class MatchDisplayControl : UserControl
     {
         private int matchID;
+        private int winnerID;
+        private int setup;
+        private bool openOrPending;
         private TournamentViewControl masterParent;
 
-        public MatchDisplayControl(TournamentViewControl master)
+        public MatchDisplayControl ()
+        {
+            InitializeComponent();
+        }
+
+        public MatchDisplayControl (TournamentViewControl master)
         {
             InitializeComponent();
 
@@ -31,6 +39,9 @@ namespace AuTO
             submitButton.BringToFront();
 
             matchID = 0;
+            winnerID = 0;
+            setup = 0;
+            openOrPending = true;
             masterParent = master;
         }
 
@@ -50,7 +61,8 @@ namespace AuTO
 
         private void allControls_MouseDown(object sender, MouseEventArgs e)
         {
-            if (e.Button == MouseButtons.Right)
+            /* Don't show match menu if match is ongoing or completed */
+            if (e.Button == MouseButtons.Right && openOrPending)
             {
                 rightClickMenu.Show(Cursor.Position);
             }
@@ -85,6 +97,26 @@ namespace AuTO
             player2Textbox.Text = name;
         }
 
+        public void SetSetupLabel (string setup)
+        {
+            setupLabel.Text = setup;
+        }
+
+        public void SetSetupNumber (int s)
+        {
+            setup = s;
+        }
+
+        public void SetWinnerID (int id)
+        {
+            winnerID = id;
+        }
+
+        public int GetWinnerID ()
+        {
+            return winnerID;
+        }
+
         public string GetPlayer1Name ()
         {
             return player1Textbox.Text;
@@ -103,6 +135,11 @@ namespace AuTO
         public int GetPlayer2Score ()
         {
             return (int)player2UpDown.Value;
+        }
+
+        public int GetSetupNumber ()
+        {
+            return setup;
         }
 
         public void DisplayErrorLabel (string msg)
@@ -129,54 +166,40 @@ namespace AuTO
         {
             player1Textbox.BackColor = Color.Ivory;
             player2Textbox.BackColor = Color.Ivory;
-            player1Textbox.ForeColor = Color.Black;
-            player2Textbox.ForeColor = Color.Black;
-            //mainPanel.BackColor = Color.Ivory;
         }
 
         public void IndicateOngoingMatch ()
         {
             player1Textbox.BackColor = Color.Khaki;
             player2Textbox.BackColor = Color.Khaki;
-            player1Textbox.ForeColor = Color.Black;
-            player2Textbox.ForeColor = Color.Black;
-            //mainPanel.BackColor = Color.Khaki;
+
+            openOrPending = false;
         }
 
         public void IndicateSubmittedMatch ()
         {
             player1Textbox.BackColor = Color.PaleGreen;
             player2Textbox.BackColor = Color.PaleGreen;
-            player1Textbox.ForeColor = Color.Black;
-            player2Textbox.ForeColor = Color.Black;
-            //mainPanel.BackColor = Color.Green;
+
+            openOrPending = false;
         }
 
         public void IndicateLongMatch ()
         {
             player1Textbox.BackColor = Color.PaleVioletRed;
             player2Textbox.BackColor = Color.PaleVioletRed;
-            player1Textbox.ForeColor = Color.Black;
-            player2Textbox.ForeColor = Color.Black;
-            //mainPanel.BackColor = Color.Maroon;
         }
 
         public void ResetTextboxBackColor ()
         {
-            player1Textbox.BackColor = SystemColors.AppWorkspace;
-            player2Textbox.BackColor = SystemColors.AppWorkspace;
-            player1Textbox.ForeColor = Color.Black;
-            player2Textbox.ForeColor = Color.Black;
-            //mainPanel.BackColor = SystemColors.AppWorkspace;
+            player1Textbox.BackColor = SystemColors.ControlDark;
+            player2Textbox.BackColor = SystemColors.ControlDark;
         }
 
         public void SetBackColor (Color c)
         {
             player1Textbox.BackColor = c;
             player2Textbox.BackColor = c;
-            player1Textbox.ForeColor = Color.Black;
-            player2Textbox.ForeColor = Color.Black;
-            //mainPanel.BackColor = c;
         }
 
         #endregion

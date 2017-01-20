@@ -19,10 +19,10 @@ namespace AuTO
         public static string BASE_URL;
         private static HttpClient client;
     
-        // Make sure login information is correct
-        // Note: This function is the first function to communicate with the challonge server;
-        // thus it will set up the shared HttpClient and if user info is valid, set up the 
-        // base URL.
+        /* Make sure login information is correct
+         * Note: This function is the first function to communicate with the challonge server;
+         * thus it will set up the shared HttpClient and if user info is valid, set up the 
+         * base URL. */
         public static async Task<Boolean> AuthenticateLogin (string user, string key)
         {
             // Set up HttpClient to communicate with Challonge
@@ -49,20 +49,21 @@ namespace AuTO
          * 200 = OK
          * -100 = URL already taken
          * -200 = Programming error
-         * -300 = No Tournament ID
-         */
+         * -300 = No Tournament ID */
         public static async Task<int> CreateTournament (Tournament t)
         {
             Uri tURL = new Uri(BASE_URL + "/tournaments.json");
 
-            /* FOR DEBUGGING PURPOSES */
-            //string j = await Task.Run(() => JsonConvert.SerializeObject(t));
-            //StringContent content = new StringContent(j, Encoding.UTF8, "application/json");
-            //string jsonContent = await content.ReadAsStringAsync();
-            //Console.WriteLine("Content: \n{0}", jsonContent);
-            //HttpResponseMessage response = await client.PostAsync(tURL, content);
+            /* Format JSON correctly; need {"tournament": ...} header */
+            string j = await Task.Run(() => JsonConvert.SerializeObject(t));
+            string header = "{\"tournament\": ";
+            j = header + j + "}";
 
-            HttpResponseMessage response = await client.PostAsJsonAsync(tURL, t);
+            StringContent content = new StringContent(j, Encoding.UTF8, "application/json");
+            string jsonContent = await content.ReadAsStringAsync();
+            //Console.WriteLine("Content: \n{0}", jsonContent);
+
+            HttpResponseMessage response = await client.PostAsync(tURL, content);
             string result = await response.Content.ReadAsStringAsync();
             //Console.WriteLine("RESULT FROM CREATING TOURNAMENT: \n{0}", result);
 
@@ -88,8 +89,7 @@ namespace AuTO
 
         /* Makes sure created tournament is accessibile. Does not support subdomains
          * 200 = OK
-         * -404 = Not Found
-         */
+         * -404 = Not Found */
         public static async Task<int> GetTournament(int t_id)
         {
             Uri tURL = new Uri(String.Format("{0}/tournaments/{1}.json",
@@ -115,8 +115,17 @@ namespace AuTO
             Uri tURL = new Uri(String.Format("{0}/tournaments/{1}/participants.json",
                                BASE_URL, t_id));
 
+            /* Format JSON correctly; need {"participant": ...} header */
+            string j = await Task.Run(() => JsonConvert.SerializeObject(p));
+            string header = "{\"participant\": ";
+            j = header + j + "}";
+
+            StringContent content = new StringContent(j, Encoding.UTF8, "application/json");
+            string jsonContent = await content.ReadAsStringAsync();
+            //Console.WriteLine("Content: \n{0}", jsonContent);
+
             /* Format JSON to send to server */
-            HttpResponseMessage response = await client.PostAsJsonAsync(tURL, p);
+            HttpResponseMessage response = await client.PostAsync(tURL, content);
             string result = await response.Content.ReadAsStringAsync();
             //Console.WriteLine("RESULT: \n{0}", result);
 
@@ -136,11 +145,36 @@ namespace AuTO
                 return id;
         }
 
+        /* Changes a player's name in Challonge.
+         * 200 = OK
+         * -200 = unhandled programming error */
+        public static async Task<int> EditPlayerName(int t_id, int p_id, string newName)
+        {
+            Uri tURL = new Uri(String.Format("{0}/tournaments/{1}/participants/{2}.json",
+                               BASE_URL, t_id, p_id));
+
+            /* Format JSON correctly; need {"participant": ...} header */
+            string j = "{\"participant\": {\"name\":\"" + newName + "\"}}"; 
+
+            StringContent content = new StringContent(j, Encoding.UTF8, "application/json");
+            string jsonContent = await content.ReadAsStringAsync();
+            //Console.WriteLine("Content: \n{0}", jsonContent);
+
+            /* Format JSON to send to server */
+            HttpResponseMessage response = await client.PutAsync(tURL, content);
+            string result = await response.Content.ReadAsStringAsync();
+            //Console.WriteLine("RESULT: \n{0}", result);
+
+            if (!response.IsSuccessStatusCode)
+                return -200;
+
+            return 200;
+        }
+
         /* Officially starts torunament; cannot add players after this.
          * 200 = OK
          * -200 = Unhandled programming error
-         * -300 = No Tounrmanet ID
-         */
+         * -300 = No Tounrmanet ID */
         public static async Task<int> StartTournament(int t_id)
         {
             Uri tURL = new Uri(String.Format("{0}/tournaments/{1}/start.json",
@@ -148,8 +182,24 @@ namespace AuTO
 
             HttpResponseMessage response = await client.PostAsJsonAsync(tURL, new Tournament());
             string result = await response.Content.ReadAsStringAsync();
-            Console.WriteLine("RESULT: \n{0}", result);
+            //Console.WriteLine("RESULT: \n{0}", result);
 
+            if (!response.IsSuccessStatusCode)
+                return -200;
+
+            return 200;
+        }
+
+        /* Finalizes tournament and notifies Challonge. Tournament attributes cannot be
+         * edited after this. 
+         * 200 = OK
+         * -200 = Unhandled programming error */
+        public static async Task<int> FinishTournament(int t_id)
+        {
+            Uri tURL = new Uri(String.Format("{0}/tournaments/{1}/finalize.json",
+                               BASE_URL, t_id));
+
+            HttpResponseMessage response = await client.PostAsync(tURL, new StringContent(string.Empty));
             if (!response.IsSuccessStatusCode)
                 return -200;
 
@@ -237,27 +287,18 @@ namespace AuTO
             Uri tURL = new Uri(String.Format("{0}/tournaments/{1}/matches/{2}.json",
                                 BASE_URL, t_id, matchID));
 
-            /* XML DEBUGGING; DOESN'T WORK */
-            //String xml = String.Format("<scores-csv>{0}</scores-csv><winner-id type=\"integer\">{1}</winner-id>", report.scores_csv, report.winner_id);
-
-            //XElement xml = new XElement("match",
-            //    new XElement("scores_csv", report.scores_csv),
-            //    new XElement("winner_id", new XAttribute("type", "integer"), report.winner_id)
-            //);
-
-            //StringContent content = new StringContent(xml.ToString(), Encoding.UTF8, "application/xml");
-            //string xmlContent = await content.ReadAsStringAsync();
-            //Console.WriteLine("Content: \n{0}", xmlContent);
-
+            /* Format JSON correctly; need {"match": ...} header */
             string j = await Task.Run(() => JsonConvert.SerializeObject(report));
+            string header = "{\"match\": ";
+            j = header + j + "}";
+
             StringContent content = new StringContent(j, Encoding.UTF8, "application/json");
             string jsonContent = await content.ReadAsStringAsync();
-            Console.WriteLine("Content: \n{0}", jsonContent);
+            //Console.WriteLine("Content: \n{0}", jsonContent);
 
             HttpResponseMessage response = await client.PutAsync(tURL, content);
-            //HttpResponseMessage response = await client.PutAsJsonAsync(tURL, report);
             string result = await response.Content.ReadAsStringAsync();
-            Console.WriteLine("RESULT FROM REPORTING SCORES: \n{0}", result);
+            //Console.WriteLine("RESULT FROM REPORTING SCORES: \n{0}", result);
 
             if (!response.IsSuccessStatusCode)
                 return -200;

@@ -154,11 +154,25 @@ namespace AuTO
             errorLabel.Visible = false;
         }
 
+        /* When user presses enter button when adding players, adds a player */
+        private void playerTextbox_KeyPress(object sender, KeyPressEventArgs e)
+        {
+            if (e.KeyChar == (char)Keys.Enter)
+            {
+                addPlayerButton_Click(addPlayerButton, new EventArgs());
+            }
+        }
+
         private async void startButton_Click(object sender, EventArgs e)
         {
+            startButton.Enabled = false;
+
             /* Not enough info to start tournament; abort */
             if (!InitialErrorCheck())
+            {
+                startButton.Enabled = true;
                 return;
+            }
 
             /* Set up tournament attributes */
             Tournament t = new Tournament();
@@ -172,6 +186,8 @@ namespace AuTO
                 t.Type = "double elimination";
 
             setups = (int)setupUpDown.Value;
+            bool isDoubleElim = (t.Type.Equals("double elimination") ? true : false);
+
             string[] players = new string[playerListbox.Items.Count];
             for (int k = 0; k < players.Length; k++)
             {
@@ -192,6 +208,8 @@ namespace AuTO
                     DisplayClientError("Tournament with URL already exists!");
                 else if (validated == -200)
                     DisplayClientError("Unhandled error on client side.");
+
+                startButton.Enabled = true;
                 return;
             }
             else
@@ -205,6 +223,7 @@ namespace AuTO
             if (validated < 0)
             {
                 DisplayClientError("Tournament not found! Client side error.");
+                startButton.Enabled = true;
                 return;
             }
 
@@ -221,6 +240,7 @@ namespace AuTO
                 {
                     await Challonge.DeleteTournament(tournamentID);
                     DisplayClientError("Could not add player; client side error.");
+                    startButton.Enabled = true;
                     return;
                 }
                 else
@@ -235,37 +255,63 @@ namespace AuTO
             //foreach (int x in playerIDs.Values)
             //    Console.WriteLine("PlayerIDs: {0}", x);
 
-            /* Start Tournament */
-            validated = await Challonge.StartTournament(tournamentID);
-            if (validated < 0)
+            /* Make sure user is ready to start tournament */
+            DialogResult okToStart = MessageBox.Show("Please make final changes to the tournament " + 
+                                                     "seeding on the official Challonge website.\n\n" +
+                                                     "Once you are satisfied with the bracket, " + 
+                                                     "press OK.\n\nIf you would like to delete the " +
+                                                     "tournament and start over, press Cancel.", 
+                                                     "Start Tournament", MessageBoxButtons.OKCancel);
+            /* User not ready; abort tournament creation */
+            if (okToStart == DialogResult.Cancel)
             {
                 await Challonge.DeleteTournament(tournamentID);
-                DisplayClientError("Could not start; client side error.");
+                tournamentID = 0;
+                playerIDs.Clear();
+                setups = 0;
+
+                DisplayClientError("Tournament creation aborted.");
+                startButton.Enabled = true;
                 return;
             }
-            else
-            {
-                DisplayClientSuccess("Tournament successfully started!", 10);
-
-                Dictionary<int, Match> matches = await Challonge.RetrieveMatches(tournamentID);
-                if (matches == null)
+            else if (okToStart == DialogResult.OK)
+            { 
+                /* Start Tournament */
+                validated = await Challonge.StartTournament(tournamentID);
+                if (validated < 0)
                 {
-                    DisplayClientError("Client side error retrieving matches");
+                    await Challonge.DeleteTournament(tournamentID);
+                    DisplayClientError("Could not start; client side error.");
+                    startButton.Enabled = true;
                     return;
                 }
+                else
+                {
+                    DisplayClientSuccess("Tournament successfully started!", 10);
 
-                TournamentViewControl tourneyView = new TournamentViewControl(tournamentID, playerIDs,
-                                                                              matches, setups);
-                tourneyView.Name = "tourneyView";
-                tourneyView.Anchor = AnchorStyles.Bottom | AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-                tourneyView.Location = this.Location;
-                tourneyView.Visible = true;
-                tourneyView.BringToFront();
+                    Dictionary<int, Match> matches = await Challonge.RetrieveMatches(tournamentID);
+                    if (matches == null)
+                    {
+                        DisplayClientError("Client side error retrieving matches");
+                        startButton.Enabled = true;
+                        return;
+                    }
 
-                this.Parent.Controls.Add(tourneyView);
+                    MainForm main = this.ParentForm as MainForm;
+                    TournamentViewControl tourneyView = new TournamentViewControl(tournamentID, t.Name, playerIDs,
+                                                                                  matches, setups, isDoubleElim);
+                    tourneyView.SetBracketButtons(main);
+                    tourneyView.Name = "tourneyView";
+                    tourneyView.Dock = DockStyle.Fill;
+                    tourneyView.Visible = true;
+                    tourneyView.BringToFront();
 
-                this.Hide();
-                this.Dispose();
+                    this.Parent.Controls.Add(tourneyView);
+                    main.SetPlayers(playerIDs);
+
+                    this.Hide();
+                    this.Dispose();
+                }
             }
         }
 
@@ -372,8 +418,6 @@ namespace AuTO
             }
 
             Clear();
-
-            //TOOD: Hide this control and go to a home screen once a home screen made
         }
 
         #endregion
